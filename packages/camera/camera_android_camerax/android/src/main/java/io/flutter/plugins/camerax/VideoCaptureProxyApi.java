@@ -7,6 +7,7 @@ package io.flutter.plugins.camerax;
 import androidx.annotation.NonNull;
 import androidx.camera.video.VideoCapture;
 import androidx.camera.video.VideoOutput;
+import androidx.camera.core.MirrorMode;
 
 /**
  * ProxyApi implementation for {@link VideoCapture}. This class may handle instantiating native
@@ -21,7 +22,10 @@ class VideoCaptureProxyApi extends PigeonApiVideoCapture {
   @NonNull
   @Override
   public VideoCapture<?> withOutput(@NonNull VideoOutput videoOutput) {
-    return VideoCapture.withOutput(videoOutput);
+    // https://developer.android.com/reference/kotlin/androidx/camera/core/MirrorMode?hl=en#MIRROR_MODE_ON_FRONT_ONLY()
+    return new VideoCapture.Builder<>(videoOutput)
+      .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY)
+      .build();
   }
 
   @NonNull
