@@ -4,7 +4,13 @@
 
 package io.flutter.plugins.camerax;
 
+import android.hardware.camera2.CaptureRequest;
+import android.util.Range;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
+import androidx.camera.camera2.interop.Camera2Interop;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.camera.video.VideoCapture;
 import androidx.camera.video.VideoOutput;
 import androidx.camera.core.MirrorMode;
@@ -19,13 +25,24 @@ class VideoCaptureProxyApi extends PigeonApiVideoCapture {
     super(pigeonRegistrar);
   }
 
+  // Range<?> is defined as Range<Integer> in pigeon.
+  @SuppressWarnings("unchecked")
+  @OptIn(markerClass = ExperimentalCamera2Interop.class)
   @NonNull
   @Override
-  public VideoCapture<?> withOutput(@NonNull VideoOutput videoOutput) {
+  public VideoCapture<?> withOutput(
+      @NonNull VideoOutput videoOutput, @Nullable Range<?> targetFpsRange) {
     // https://developer.android.com/reference/kotlin/androidx/camera/core/MirrorMode?hl=en#MIRROR_MODE_ON_FRONT_ONLY()
-    return new VideoCapture.Builder<>(videoOutput)
-      .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY)
-      .build();
+    VideoCapture.Builder<VideoOutput> builder = new VideoCapture.Builder<>(videoOutput).setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY);
+
+    if (targetFpsRange != null) {
+      Camera2Interop.Extender<VideoCapture<VideoOutput>> extender =
+          new Camera2Interop.Extender<>(builder);
+      extender.setCaptureRequestOption(
+          CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, (Range<Integer>) targetFpsRange);
+    }
+
+    return builder.build();
   }
 
   @NonNull
