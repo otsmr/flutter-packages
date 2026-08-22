@@ -128,6 +128,12 @@
               error:(NSError **)outError {
   return [AVAudioSession.sharedInstance setCategory:category withOptions:options error:outError];
 }
+
+- (BOOL)setActive:(BOOL)active
+      withOptions:(AVAudioSessionSetActiveOptions)options
+            error:(NSError **)outError {
+  return [AVAudioSession.sharedInstance setActive:active withOptions:options error:outError];
+}
 @end
 #endif
 

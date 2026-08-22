@@ -84,6 +84,7 @@ static NSDictionary<NSString *, NSValue *> *FVPGetPlayerItemObservations(void) {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
 
+  _avFactory = avFactory;
   _viewProvider = viewProvider;
 
   NSObject<FVPAVAsset> *asset = item.asset;
@@ -191,6 +192,11 @@ static NSDictionary<NSString *, NSValue *> *FVPGetPlayerItemObservations(void) {
   if (_onDisposed) {
     _onDisposed();
   }
+#if TARGET_OS_IOS
+  if (_avFactory != nil) {
+    [[_avFactory sharedAudioSession] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+  }
+#endif
   [self.eventListener videoPlayerWasDisposed];
 }
 
@@ -218,6 +224,11 @@ static NSDictionary<NSString *, NSValue *> *FVPGetPlayerItemObservations(void) {
     AVPlayerItem *p = [notification object];
     [p seekToTime:kCMTimeZero completionHandler:nil];
   } else {
+#if TARGET_OS_IOS
+    if (_avFactory != nil) {
+      [[_avFactory sharedAudioSession] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+    }
+#endif
     [self.eventListener videoPlayerDidComplete];
   }
 }
@@ -348,6 +359,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   } else {
     [_player pause];
+#if TARGET_OS_IOS
+    if (_avFactory != nil) {
+      [[_avFactory sharedAudioSession] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+    }
+#endif
   }
 }
 

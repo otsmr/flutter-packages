@@ -17,6 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) NSObject<FVPPixelBufferSource> *pixelBufferSource;
 /// The view provider, to obtain view information from.
 @property(nonatomic, readonly, nullable) NSObject<FVPViewProvider> *viewProvider;
+/// The AVFactory used to create AVFoundation objects.
+@property(nonatomic, readonly) id<FVPAVFactory> avFactory;
 /// The preferred transform for the video. It can be used to handle the rotation of the video.
 @property(nonatomic) CGAffineTransform preferredTransform;
 /// The target playback speed requested by the plugin client.

@@ -76,6 +76,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)setCategory:(AVAudioSessionCategory)category
         withOptions:(AVAudioSessionCategoryOptions)options
               error:(NSError **)outError;
+/// Wraps the AVAudioSession method of the same name.
+- (BOOL)setActive:(BOOL)active
+      withOptions:(AVAudioSessionSetActiveOptions)options
+            error:(NSError **)outError;
 @end
 #endif
 
