@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import android.content.Context;
 import android.view.Surface;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
@@ -65,7 +66,7 @@ public final class TextureVideoPlayerTest {
 
   private TextureVideoPlayer createVideoPlayer(VideoPlayerOptions options) {
     return new TextureVideoPlayer(
-        mockEvents, mockProducer, fakeVideoAsset.getMediaItem(), options, () -> mockExoPlayer);
+        mock(Context.class), mockEvents, mockProducer, fakeVideoAsset.getMediaItem(), options, () -> mockExoPlayer);
   }
 
   @Test

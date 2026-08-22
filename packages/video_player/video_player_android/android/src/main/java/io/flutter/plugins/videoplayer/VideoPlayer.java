@@ -25,6 +25,10 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import io.flutter.view.TextureRegistry.SurfaceProducer;
 import java.util.ArrayList;
 import java.util.List;
+import android.content.Context;
+import android.media.AudioManager;
+import android.media.AudioFocusRequest;
+import android.os.Build;
 
 /**
  * A class responsible for managing video playback using {@link ExoPlayer}.
@@ -37,6 +41,11 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   @Nullable private DisposeHandler disposeHandler;
   @Nullable private ExoPlayerEventListener exoPlayerEventListener;
   @NonNull protected ExoPlayer exoPlayer;
+  @NonNull protected VideoPlayerOptions options;
+  @NonNull protected Context applicationContext;
+  @Nullable private AudioManager audioManager;
+  @Nullable private AudioFocusRequest audioFocusRequest;
+  @Nullable private AudioManager.OnAudioFocusChangeListener focusChangeListener;
   // TODO: Migrate to stable API, see https://github.com/flutter/flutter/issues/147039.
   @UnstableApi @Nullable protected DefaultTrackSelector trackSelector;
 
@@ -67,13 +76,16 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   // https://github.com/flutter/packages/pull/10193
   @SuppressWarnings("this-escape")
   public VideoPlayer(
+      @NonNull Context context,
       @NonNull VideoPlayerCallbacks events,
       @NonNull MediaItem mediaItem,
       @NonNull VideoPlayerOptions options,
       @Nullable SurfaceProducer surfaceProducer,
       @NonNull ExoPlayerProvider exoPlayerProvider) {
+    this.applicationContext = context;
     this.videoPlayerEvents = events;
     this.surfaceProducer = surfaceProducer;
+    this.options = options;
     exoPlayer = exoPlayerProvider.get();
 
     // Try to get the track selector from the ExoPlayer if it was built with one
@@ -85,7 +97,11 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
     exoPlayer.prepare();
     exoPlayerEventListener = createExoPlayerEventListener(exoPlayer, surfaceProducer);
     exoPlayer.addListener(exoPlayerEventListener);
-    setAudioAttributes(exoPlayer, options.mixWithOthers);
+    
+    // Disable ExoPlayer's automatic audio focus management so we can handle it manually.
+    exoPlayer.setAudioAttributes(
+        new AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
+        false);
   }
 
   public void setDisposeHandler(@Nullable DisposeHandler handler) {
@@ -95,12 +111,6 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   @NonNull
   protected abstract ExoPlayerEventListener createExoPlayerEventListener(
       @NonNull ExoPlayer exoPlayer, @Nullable SurfaceProducer surfaceProducer);
-
-  private static void setAudioAttributes(ExoPlayer exoPlayer, boolean isMixMode) {
-    exoPlayer.setAudioAttributes(
-        new AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
-        !isMixMode);
-  }
 
   /**
    * Helper method to extract a long value from a Format field, returning null if the value is
@@ -124,13 +134,62 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
     return value != Format.NO_VALUE ? value : null;
   }
 
+  private void setupAudioFocus() {
+    if (audioManager == null) {
+      audioManager = (AudioManager) applicationContext.getSystemService(Context.AUDIO_SERVICE);
+    }
+    if (focusChangeListener == null) {
+      focusChangeListener = focusChange -> {
+        if (focusChange == AudioManager.AUDIOFOCUS_LOSS || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+          pause();
+        }
+      };
+    }
+  }
+
+  private void requestAudioFocus() {
+    if (options.mixWithOthers || audioManager == null) {
+      return;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      if (audioFocusRequest == null) {
+        audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(new android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE)
+                .build())
+            .setOnAudioFocusChangeListener(focusChangeListener)
+            .build();
+      }
+      audioManager.requestAudioFocus(audioFocusRequest);
+    } else {
+      audioManager.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+    }
+  }
+
+  private void abandonAudioFocus() {
+    if (options.mixWithOthers || audioManager == null) {
+      return;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      if (audioFocusRequest != null) {
+        audioManager.abandonAudioFocusRequest(audioFocusRequest);
+      }
+    } else {
+      audioManager.abandonAudioFocus(focusChangeListener);
+    }
+  }
+
   @Override
   public void play() {
+    setupAudioFocus();
+    requestAudioFocus();
     exoPlayer.play();
   }
 
   @Override
   public void pause() {
+    abandonAudioFocus();
     exoPlayer.pause();
   }
 
@@ -459,6 +518,7 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
       exoPlayerEventListener.dispose();
       exoPlayerEventListener = null;
     }
+    abandonAudioFocus();
     exoPlayer.release();
   }
 }
